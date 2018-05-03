@@ -1,0 +1,32 @@
+name:                hnix-web-repl
+version:             0.1
+synopsis:            A REPL for nix expressions in your browser
+-- description:         
+homepage:            https://github.com/haskell-nix/hnix-web-repl
+license:             BSD3
+license-file:        LICENSE
+author:              Doug Beardsley
+maintainer:          mightybyte@gmail.com
+copyright:           Doug Beardsley
+category:            Reflex
+build-type:          Simple
+extra-source-files:  ChangeLog.md
+cabal-version:       >=1.10
+
+executable frontend
+  main-is:             Main.hs
+  other-modules:       
+    NixRepl
+  -- other-extensions:    
+  build-depends:
+      base
+    , containers
+    , hnix
+    , mtl
+    , reflex
+    , reflex-dom
+    , text
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  extensions:
+    OverloadedStrings
