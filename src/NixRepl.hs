@@ -28,9 +28,6 @@ dummyData = S.fromList
       , OutputSnippet "# Enter nix expressions here"
       ]
 
-nixRepl :: MonadWidget t m => m ()
-nixRepl = replWidget never
-
 data DisplayedSnippet
   = InputSnippet Text
   | OutputSnippet Text
@@ -83,7 +80,5 @@ runExpr s etext = liftIO $
         $ runLazy (normalForm =<< nixEvalExpr Nothing e)
       return (Right a, s2)
 
-showResult :: Show a => Either String a -> Text
-showResult (Right v) = T.pack $ show v
+showResult (Right v) = T.pack $ show $ prettyNValueNF v
 showResult (Left e) = "Error: " <> T.pack e
-
