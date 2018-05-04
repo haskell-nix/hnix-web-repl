@@ -4,22 +4,23 @@ module NixRepl where
 
 ------------------------------------------------------------------------------
 import           Control.Monad.Trans
-import           Data.Char
+import           Control.Monad.Trans.Reader
+import           Control.Monad.Trans.State.Strict
+import           Data.HashMap.Lazy (HashMap)
+import qualified Data.HashMap.Lazy as HM
+import           Data.Map (Map)
+import qualified Data.Map as M
 import           Data.Monoid
 import           Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Nix
+import           Nix hiding (value)
+import           Nix.Atoms
+import           Nix.Context
+import           Reflex
 import           Reflex.Dom
 ------------------------------------------------------------------------------
-import           History
-------------------------------------------------------------------------------
-
-data DisplayedSnippet
-  = InputSnippet Text
-  | OutputSnippet Text
-  deriving (Eq,Ord,Show,Read)
 
 dummyData :: Seq DisplayedSnippet
 dummyData = S.fromList
@@ -27,29 +28,62 @@ dummyData = S.fromList
       , OutputSnippet "# Enter nix expressions here"
       ]
 
+nixRepl :: MonadWidget t m => m ()
+nixRepl = replWidget never
+
+data DisplayedSnippet
+  = InputSnippet Text
+  | OutputSnippet Text
+  deriving (Eq,Ord,Show,Read)
+
 snippetWidget :: MonadWidget t m => DisplayedSnippet -> m ()
 snippetWidget (InputSnippet t) = el "pre" $ text t
 snippetWidget (OutputSnippet t) = el "pre" $ text t
 
-nixRepl :: MonadWidget t m => m ()
-nixRepl = do
-    elAttr "div" ("class" =: "repl") $ mdo
+replWidget
+    :: MonadWidget t m
+    => Event t Text
+    -> m ()
+replWidget newCode = do
+    let runInput input snippets =
+          snippets <> S.singleton (InputSnippet input)
+
+    elAttr "div" ("id" =: "code") $ mdo
+      let start = (Left "init", mempty)
+      replState <- holdDyn start $ leftmost
+        [ evalResult
+        , start <$ newCode
+        ]
       snippets <- holdUniqDyn =<< foldDyn ($) dummyData (leftmost
-        [ flip (S.|>) . InputSnippet <$> newInput
+        [ runInput <$> newInput
+        , (\r ss -> ss <> S.singleton (OutputSnippet (showResult $ fst r))) <$> evalResult
+        , const dummyData <$ newCode
         ])
-      history <- foldDyn ($) emptyHistory $
-        (addHistoryUnlessConsecutiveDupe <$> newInput)
-      dyn $ mapM_ snippetWidget <$> snippets
-      ti <- textInput $ def
-        & attributes .~ constDyn ("class" =: "repl-input")
-        & setValue .~ (mempty <$ enterPressed)
-      let filterKey k = ffilter (==k) $ _textInput_keydown ti
-      let enterPressed = filterKey 13
-          newInput = tag (current $ value ti) enterPressed
-          upPressed = ffilterKey 38
-          downPressed = ffilterKey 40
-      performEvent_ (liftIO . print <$> _textInput_keydown ti)
-  where
-    runInput input snippets =
-      snippets <> S.singleton input <> runExpr input
-    runExpr e = runLazyM defaultOptions (normalForm =<< nixEvalExpr Nothing e)
+      _ <- dyn $ mapM_ snippetWidget <$> snippets
+      (ti, goEvent) <- divClass "repl-input-controls" $ mdo
+        ti <- textArea $ def
+          & attributes .~ constDyn mempty -- ("class" =: "repl-input")
+          & setValue .~ (mempty <$ buttonClicked)
+        (b,_) <- el' "button" $ text "Evaluate"
+        let buttonClicked = domEvent Click b
+        return (ti, buttonClicked)
+      let newInput = tag (current $ value ti) goEvent
+      evalResult <- performEvent $ leftmost
+        [ attachWith runExpr (current replState) newInput
+        , attachPromptlyDynWith runExpr replState newCode
+        ]
+      return ()
+
+runExpr s etext = liftIO $
+  case parseNixText etext of
+    Failure err -> return (Left $ show err, snd s)
+    Success e -> do
+      (a,s2) <- (`runStateT` snd s)
+        $ (`runReaderT` newContext defaultOptions)
+        $ runLazy (normalForm =<< nixEvalExpr Nothing e)
+      return (Right a, s2)
+
+showResult :: Show a => Either String a -> Text
+showResult (Right v) = T.pack $ show v
+showResult (Left e) = "Error: " <> T.pack e
+

@@ -18,3 +18,12 @@ cabal.sandbox.config
 .stack-work/
 cabal.project.local
 .HTF/
+result
+all.js
+all.js.externs
+lib.js
+manifest.webapp
+out.js
+out.stats
+rts.js
+runmain.js
