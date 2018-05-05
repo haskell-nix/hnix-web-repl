@@ -14,15 +14,29 @@ in
          cryptohash-sha512 = guardGhcjs super.cryptohash-sha512;
          hashing = super.hashing;
          haskeline = guardGhcjs super.haskeline;
-         # lens = pkgs.haskell.lib.dontCheck super.lens;
+         megaparsec = pkgs.haskell.lib.dontCheck super.megaparsec;
+         serialise = pkgs.haskell.lib.doJailbreak super.serialise;
+
+         Glob = guardGhcjs super.Glob;
+         criterion = guardGhcjs super.criterion;
+         interpolate = guardGhcjs super.interpolate;
+         pretty-show = guardGhcjs super.pretty;
+         repline = guardGhcjs super.repline;
+         tasty = guardGhcjs super.tasty;
+         tasty-hunit = guardGhcjs super.tasty;
+         tasty-th = guardGhcjs super.tasty;
+         unix = guardGhcjs super.unix;
        };
     packages = {
-      hnix-frontend = ./.;
+      hnix-frontend = builtins.filterSource
+        (path: type: !(builtins.elem (baseNameOf path)
+           ["result" "dist" "dist-ghcjs" ".git" "app"]))
+        ./.;
       hnix = pkgs.fetchFromGitHub {
         owner = "haskell-nix";
         repo = "hnix";
-        rev = "92c574a30739a45a52d3d026386f75fb8475d1cd";
-        sha256 = "0p52p67isgxix88355chlqmh1g7pgrgbd3ikxmn4h5gpzmsx8rsg";
+        rev = "0d7176c2946c203adb49e2f19093892c917f513e";
+        sha256 = "07x2vsx608bryd0il02bw7jky0p28yip73jhiwrh56adlvsp5xcq";
       };
 
       megaparsec = pkgs.fetchFromGitHub {
@@ -36,6 +50,14 @@ in
         repo = "parser-combinators";
         rev = "dd6599224fe7eb224477ef8e9269602fb6b79fe0";
         sha256 = "11cpfzlb6vl0r5i7vbhp147cfxds248fm5xq8pwxk92d1f5g9pxm";
+      };
+      # Should be callHackage, but it gives an error "found zero or more than one cabal file"
+      # unordered-containers = pkgs.haskellPackages.callHackage "unordered-containers" "0.2.9.0" {};
+      unordered-containers = pkgs.fetchFromGitHub {
+        owner = "tibbe";
+        repo = "unordered-containers";
+        rev = "0a6b84ec103e28b73458f385ef846a7e2d3ea42f";
+        sha256 = "128q8k4py2wr1v0gmyvqvzikk6sksl9aqj0lxzf46763lis8x9my";
       };
     };
     

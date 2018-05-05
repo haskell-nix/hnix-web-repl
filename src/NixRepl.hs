@@ -15,6 +15,7 @@ import           Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import           Data.Text (Text)
 import qualified Data.Text as T
+import           Data.Time
 import           Nix hiding (value)
 import           Nix.Atoms
 import           Nix.Context
@@ -57,9 +58,9 @@ replWidget newCode = do
         , const dummyData <$ newCode
         ])
       _ <- dyn $ mapM_ snippetWidget <$> snippets
-      (ti, goEvent) <- divClass "repl-input-controls" $ mdo
+      (ti, goEvent) <- divClass "ui form" $ divClass "field" $ mdo
         ti <- textArea $ def
-          & attributes .~ constDyn mempty -- ("class" =: "repl-input")
+          & attributes .~ constDyn ("rows" =: "2")
           & setValue .~ (mempty <$ buttonClicked)
         (b,_) <- el' "button" $ text "Evaluate"
         let buttonClicked = domEvent Click b
@@ -75,8 +76,9 @@ runExpr s etext = liftIO $
   case parseNixText etext of
     Failure err -> return (Left $ show err, snd s)
     Success e -> do
+      t <- getCurrentTime
       (a,s2) <- (`runStateT` snd s)
-        $ (`runReaderT` newContext defaultOptions)
+        $ (`runReaderT` newContext (defaultOptions t))
         $ runLazy (normalForm =<< nixEvalExpr Nothing e)
       return (Right a, s2)
 

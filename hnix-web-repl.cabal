@@ -28,6 +28,7 @@ executable frontend
     , reflex-dom
     , string-qq
     , text
+    , time
     , transformers
     , unordered-containers
   hs-source-dirs:      src
